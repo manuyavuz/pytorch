@@ -11,6 +11,39 @@ def add_one(fut):
 
 
 class TestFuture(TestCase):
+    def test_set_exception(self) -> None:
+        # This test is to ensure errors can propagate across futures.
+        error_msg = "Intentional Value Error"
+        value_error = ValueError(error_msg)
+
+        f = Future[int]()
+        # Set exception
+        f.set_exception(value_error)
+        # Exception should throw on wait
+        with self.assertRaisesRegex(ValueError, "Intentional"):
+            f.wait()
+
+        # Exception should also throw on value
+        f = Future()
+        f.set_exception(value_error)
+        with self.assertRaisesRegex(ValueError, "Intentional"):
+            f.value()
+
+    def test_set_exception_multithreading(self) -> None:
+        # Ensure errors can propagate when one thread waits on future result
+        # and the other sets it with an error.
+        error_msg = "Intentional Value Error"
+        value_error = ValueError(error_msg)
+
+        def wait_future(f):
+            with self.assertRaisesRegex(ValueError, "Intentional"):
+                f.wait()
+
+        f = Future[int]()
+        t = threading.Thread(target=wait_future, args=(f, ))
+        t.start()
+        f.set_exception(value_error)
+        t.join()
 
     def test_done(self) -> None:
         f = Future[torch.Tensor]()
